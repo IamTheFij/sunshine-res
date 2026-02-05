@@ -27,6 +27,7 @@ from sunshine_res.cosmic import CosmicRandr
 from sunshine_res.gnome import GnomeRandr
 from sunshine_res.kde import KscreenDoctor
 from sunshine_res.types import ResolutionManager
+from sunshine_res.virtual_display import create_virtual_display
 
 SUNSHINE_CLIENT_WIDTH = int(os.getenv("SUNSHINE_CLIENT_WIDTH", 1920))
 SUNSHINE_CLIENT_HEIGHT = int(os.getenv("SUNSHINE_CLIENT_HEIGHT", 1080))
@@ -45,6 +46,7 @@ class SunshineResArgs(NamedTuple):
     command: str
     supersample: float
     target_output: str | None
+    virtual_interactive: bool = False
 
 
 def parse_args(sys_argv: list[str]) -> SunshineResArgs:
@@ -52,40 +54,71 @@ def parse_args(sys_argv: list[str]) -> SunshineResArgs:
         "sunshine-res", description="Sunshine Resolution Manager"
     )
 
-    _ = parser.add_argument(
-        "command",
-        type=str,
-        nargs="?",
-        default="auto",
-        help="Command to execute: do, undo, auto (default: auto)",
+    subparsers = parser.add_subparsers(dest="command", required=False)
+
+    undo_parser = subparsers.add_parser(
+        "undo", help="Revert to the original resolution"
+    )
+    do_parser = subparsers.add_parser("do", help="Apply the resolution change")
+    auto_parser = subparsers.add_parser(
+        "auto", help="Automatically apply or undo the resolution change"
     )
 
-    _ = parser.add_argument(
-        "-s",
-        "--supersample",
-        type=float,
-        default=1.0,
-        help="Supersampling scale factor (default: 1.0, disabled)",
+    for cmd_parser in [do_parser, auto_parser]:
+        _ = cmd_parser.add_argument(
+            "-s",
+            "--supersample",
+            type=float,
+            default=1.0,
+            help="Supersampling scale factor (default: 1.0, disabled)",
+        )
+
+        _ = cmd_parser.add_argument(
+            "-o",
+            "--target-output",
+            type=str,
+            default=None,
+            help="Target output for resolution updates (default: first display)",
+        )
+
+    create_virtual_parser = subparsers.add_parser(
+        "create_virtual",
+        help="Create a virtual display with the specified resolution",
+        description="This command generates a virtual display with a range of resolutions and refresh rates. By default, it will create a display with the name 'Sunshine Virtual Display'. You can specify custom parameters in interactive mode. It will likely require root permissions to write the EDID file to the correct location, so make sure to run with sudo if you encounter permission errors.",
     )
 
-    _ = parser.add_argument(
-        "-o",
-        "--target-output",
-        type=str,
-        default=None,
-        help="Target output for resolution updates (default: first display)",
+    _ = create_virtual_parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Run in interactive mode to specify custom resolution parameters",
     )
 
-    parsed_args = parser.parse_args(sys_argv[1:])
+    parsed_args = parser.parse_args()
     return SunshineResArgs(
         command=cast(str, parsed_args.command),
-        supersample=cast(float, parsed_args.supersample),
-        target_output=cast(str | None, parsed_args.target_output),
+        supersample=(
+            cast(float, parsed_args.supersample)
+            if hasattr(parsed_args, "supersample")
+            else 1.0
+        ),
+        target_output=(
+            cast(str | None, parsed_args.target_output)
+            if hasattr(parsed_args, "target_output")
+            else None
+        ),
+        virtual_interactive=(
+            cast(bool, parsed_args.interactive)
+            if hasattr(parsed_args, "interactive")
+            else False
+        ),
     )
 
 
 def main() -> None:
     """Entry point for sunshine-res command line tool."""
+    args = parse_args(sys.argv)
+
     # Get the currently listed desktop
     current_desktop = os.getenv(
         "XDG_CURRENT_DESKTOP",
@@ -95,7 +128,9 @@ def main() -> None:
         print("ERROR: Could not determine current desktop")
         exit(1)
 
-    args = parse_args(sys.argv)
+    if args.command == "create_virtual":
+        create_virtual_display(interractive=args.virtual_interactive)
+        return
 
     # Find a manager class that matches
     manager: ResolutionManager
@@ -114,22 +149,15 @@ def main() -> None:
         print(f"Could not find resolution manager for desktop {current_desktop}")
         exit(1)
 
-    # Read the command from args
-    command = ""
-    if len(sys.argv) < 2:
-        command = "auto"
-    else:
-        command = sys.argv[1]
-
     # Execute command in given manager
-    if command == "auto":
+    if args.command == "auto":
         manager.toggle()
-    elif command == "do":
+    elif args.command == "do":
         manager.do()
-    elif command == "undo":
+    elif args.command == "undo":
         manager.undo()
     else:
-        print(f"Unknown command {command}")
+        print(f"Unknown command {args.command}")
         exit(1)
 
 
