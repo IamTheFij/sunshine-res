@@ -82,7 +82,7 @@ Environment variables are optional and typically set by Sunshine; defaults are:
 |---------|-----------------|
 | KDE | Uses `kscreen-doctor` to query and set monitor modes. |
 | COSMIC | Uses `cosmic-randr` to query and set monitor modes. |
-| Gnome | Uses `gnome-randr` from [gnome-randr-rust](https://github.com/maxwellainatchi/gnome-randr-rust) to query and set monitor modes. |
+| Gnome | Uses `gnome-randr` from [gnome-randr-rust](https://github.com/maxwellainatchi/gnome-randr-rust) if installed, otherwise `gdctl`, which ships with GNOME 48 and newer. |
 
 The tool automatically detects the current desktop by inspecting the `XDG_CURRENT_DESKTOP`, `XDG_SESSION_DESKTOP`, or `SESSION_DESKTOP` environment variables. If no supported desktop is detected, the command will exit with an error.
 
@@ -101,7 +101,7 @@ The tool automatically detects the current desktop by inspecting the `XDG_CURREN
 | `ERROR: Could not determine current desktop` | No desktop environment variable was found. | Make sure you are running the command from an active session. On some shells you may need to export `XDG_CURRENT_DESKTOP=KDE` or `COSMIC` manually. |
 | `Could not find resolution manager for desktop <name>` | The desktop variable contains an unsupported value. | Check the spelling of the desktop name. Supported values are `KDE` and `COSMIC` and `GNOME`. |
 | `Did not find mode matching <width>x<height> at <output>` | The monitor does not advertise the requested resolution. | Verify that the resolution is supported by your monitor or try a different resolution. |
-| `Could not identify current mode` | The underlying command returned an unexpected format. | Ensure `cosmic-randr`, `gnome-randr`, or `kscreen-doctor` is installed and working. Run the command manually (`cosmic-randr list --kdl`, `gnome-randr`, or `kscreen-doctor --json`) to confirm. |
+| `Could not identify current mode` | The underlying command returned an unexpected format. | Ensure `cosmic-randr`, `gnome-randr`, `gdctl`, or `kscreen-doctor` is installed and working. Run the command manually (`cosmic-randr list --kdl`, `gnome-randr`, `gdctl show --modes --properties`, or `kscreen-doctor --json`) to confirm. |
 | `Permission denied` | The command was unable to write to `~/.config/sunshine/last_mode.json`. | Verify that you have write permissions to `~/.config/sunshine`. |
 
 If you encounter an unhandled exception, try running the command with the `-v` flag (if implemented) or inspect the stack trace. The project is open source, so feel free to file an issue.
