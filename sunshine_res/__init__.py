@@ -2,13 +2,13 @@
 Resolution Management Module
 
 This module provides a system to dynamically adjust display resolution and HDR settings
-based on the user's desktop environment (KDE or Cosmic). It supports command-line
+based on the user's desktop environment (KDE, Cosmic or GNOME). It supports command-line
 operations to 'do' (apply a resolution), 'undo' (revert to original), or 'auto' (toggle
 between modes). The module uses platform-specific tools (kscreen-doctor for KDE,
-cosmic-randr for Cosmic) to interface with the display server.
+cosmic-randr for Cosmic, gnome-randr or gdctl for GNOME) to interface with the display server.
 
 Key Features:
-- Auto-detects desktop environment (KDE/Cosmic)
+- Auto-detects desktop environment (KDE/Cosmic/GNOME)
 - Manages resolution and HDR settings
 - Persistent state tracking for 'undo' operations
 
@@ -18,12 +18,14 @@ sunshine-res [do/undo/auto]
 
 import argparse
 import os
+import shutil
 import sys
 from argparse import Namespace
 from typing import NamedTuple
 from typing import cast
 
 from sunshine_res.cosmic import CosmicRandr
+from sunshine_res.gdctl import Gdctl
 from sunshine_res.gnome import GnomeRandr
 from sunshine_res.kde import KscreenDoctor
 from sunshine_res.resolution_manager import ResolutionManager
@@ -37,7 +39,8 @@ SUNSHINE_CLIENT_HDR = bool(os.getenv("SUNSHINE_CLIENT_HDR")) == True
 DESKTOP_TO_CLASS: dict[str, type[ResolutionManager]] = {
     "KDE": KscreenDoctor,
     "COSMIC": CosmicRandr,
-    "GNOME": GnomeRandr,
+    # Prefer gnome-randr when installed, otherwise use gdctl from GNOME 48+
+    "GNOME": GnomeRandr if shutil.which("gnome-randr") else Gdctl,
 }
 
 
